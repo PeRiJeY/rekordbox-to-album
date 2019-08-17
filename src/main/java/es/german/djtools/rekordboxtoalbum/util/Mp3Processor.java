@@ -68,7 +68,7 @@ public class Mp3Processor implements RecordProcessor<FileRecord, FileRecord> {
 			throws UnsupportedTagException, InvalidDataException, IOException, NotSupportedException {
 		if (file.isFile()) {
 			Mp3File mp3file = new Mp3File(file);
-			// if (1==1) return;
+
 			if (mp3file.hasId3v2Tag()) {
 				ID3v2 id3v2Tag = mp3file.getId3v2Tag();
 				
