@@ -3,7 +3,6 @@ package es.german.djtools.rekordboxtoalbum.util;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -11,6 +10,8 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.easybatch.core.processor.RecordProcessor;
+import org.easybatch.core.record.FileRecord;
 
 import com.mpatric.mp3agic.ID3v2;
 import com.mpatric.mp3agic.InvalidDataException;
@@ -23,40 +24,47 @@ import es.german.djtools.rekordboxtoalbum.Stats;
 import es.german.djtools.rekordboxtoalbum.exceptions.CustomException;
 import es.german.djtools.rekordboxtoalbum.rekordbox.Track;
 
-public class Mp3Manager {
+public class Mp3Processor implements RecordProcessor<FileRecord, FileRecord> {
 	private static final String RETAG_EXTENSION = ".retag";
 	private static final String BACKUP_EXTENSION = ".bak";
 	
 	final static Logger logger = LogManager.getLogger();
 	
-	public static void processFiles(List<File> lFiles, Map<String, Track> rbTracks) {
-		long counter = 0;
-		float size = lFiles.size();
-		for (File f : lFiles) {
-			Stats.getInstance().addElementProcessed();
-			counter++;
-			if (counter % 10 == 0) {
-				logger.debug("Proccesed: " + counter + " items");
-				System.out.printf("Proccesed: " + counter + " (%.2f%%)\r", (100 * counter / size));
-			}
-			
-			try {
-				fillAlbum(f, rbTracks);
-			} catch (UnsupportedTagException e) {
-				logger.error(f.getName(), e);
-			} catch (InvalidDataException e) {
-				logger.error(f.getName(), e);
-			} catch (NotSupportedException e) {
-				logger.error(f.getName(), e);
-			} catch (IOException e) {
-				logger.error(f.getName(), e);
-			} catch (Exception e) {
-				logger.error(f.getName(), e);
-			}
-		}
+	private Map<String, Track> rbTracks = null;
+	
+	public Mp3Processor(Map<String, Track> rbTracks) {
+		super();
+		this.rbTracks = rbTracks;
 	}
 
-	private static void fillAlbum(final File file, Map<String, Track> rbTracks)
+	public FileRecord processRecord(FileRecord record) throws Exception {
+		long counter = Stats.getInstance().addElementProcessed();
+		if (counter % 20 == 0) {			
+			logger.debug("Proccesed: " + counter + " items");
+			System.out.printf("Proccesed: " + counter + " items\r", counter);
+		}
+		
+		File f = record.getPayload();
+
+		try {
+			
+			fillAlbum(f);
+		} catch (UnsupportedTagException e) {
+			logger.error(f.getName(), e);
+		} catch (InvalidDataException e) {
+			logger.error(f.getName(), e);
+		} catch (NotSupportedException e) {
+			logger.error(f.getName(), e);
+		} catch (IOException e) {
+			logger.error(f.getName(), e);
+		} catch (Exception e) {
+			logger.error(f.getName(), e);
+		}
+		
+		return record;
+	}
+	
+	private void fillAlbum(final File file)
 			throws UnsupportedTagException, InvalidDataException, IOException, NotSupportedException {
 		if (file.isFile()) {
 			Mp3File mp3file = new Mp3File(file);
@@ -110,7 +118,7 @@ public class Mp3Manager {
 
 	}
 	
-	private static String getCompactGenre(String genre) {
+	private String getCompactGenre(String genre) {
 		String compactGenre = null;
 		if (StringUtils.isNotEmpty(genre)) {
 			compactGenre = getCompactGenreOnlyCase(genre);
@@ -122,7 +130,7 @@ public class Mp3Manager {
 
 	}
 
-	private static String getCompactGenreOnlyCase(String genre) {
+	private String getCompactGenreOnlyCase(String genre) {
 		String compactGenre = null;
 		if (StringUtils.isNotEmpty(genre)) {
 			compactGenre = genre.replaceAll("[^A-Z]+", "");
@@ -130,7 +138,7 @@ public class Mp3Manager {
 		return compactGenre;
 	}
 	
-	private static String getCompactGenreFirstChars(String genre) {
+	private String getCompactGenreFirstChars(String genre) {
 		String compactGenre = null;
 		if (StringUtils.isNotEmpty(genre)) {
 			compactGenre = genre.length() <= 3 ? genre : genre.substring(0,  3);
@@ -144,7 +152,7 @@ public class Mp3Manager {
 	 * @return
 	 */
 	@SuppressWarnings("unused")
-	private static String getCompactGenreSmart(String genre) {
+	private String getCompactGenreSmart(String genre) {
 		String compactGenre = null;
 		if (StringUtils.isNotEmpty(genre)) {
 			StringBuffer sb = new StringBuffer();
@@ -157,7 +165,7 @@ public class Mp3Manager {
 		return compactGenre;
 	}
 
-	private static int getRating(Track rbTrack) {
+	private int getRating(Track rbTrack) {
 		if (rbTrack == null) {
 			return 0;
 		}
@@ -165,7 +173,7 @@ public class Mp3Manager {
 		return convertRating(rbTrack.getRating());
 	}
 
-	private static int convertRating(int rbRating) {
+	private int convertRating(int rbRating) {
 		Map<Integer, Integer> mapRbTraktor = new HashMap<Integer, Integer>();
 		mapRbTraktor.put(255, 5);
 		mapRbTraktor.put(204, 4);
@@ -177,7 +185,7 @@ public class Mp3Manager {
 		return result != null ? result.intValue() : 0;
 	}
 
-	private static String getEnergyFromComment(String comment) {
+	private String getEnergyFromComment(String comment) {
 		String result = "D";
 		if (StringUtils.isNotEmpty(comment)) {
 			if (StringUtils.containsIgnoreCase(comment, "/* High */")) {
@@ -191,7 +199,7 @@ public class Mp3Manager {
 		return result;
 	}
 	
-	private static void saveChanges(Mp3File mp3file) throws NotSupportedException, IOException {
+	private void saveChanges(Mp3File mp3file) throws NotSupportedException, IOException {
 		removeFile(mp3file.getFilename() + RETAG_EXTENSION);
 		mp3file.save(mp3file.getFilename() + RETAG_EXTENSION);
 		
@@ -199,7 +207,7 @@ public class Mp3Manager {
 		removeFile(mp3file.getFilename() + BACKUP_EXTENSION);
 	}
 	
-	private static void renameFiles(String filename) throws IOException {
+	private void renameFiles(String filename) throws IOException {
 		File originalFile = new File(filename);
 		File backupFile = new File(filename + BACKUP_EXTENSION);
 		File retaggedFile = new File(filename + RETAG_EXTENSION);
@@ -216,7 +224,7 @@ public class Mp3Manager {
 		}
 	}
 	
-	private static void removeFile(String filename) throws IOException {
+	private void removeFile(String filename) throws IOException {
 		File file = new File(filename);
 		if (file.exists()) {
 			if (!file.delete()) {
@@ -226,7 +234,7 @@ public class Mp3Manager {
 	}
 	
 	@SuppressWarnings("unused")
-	private static boolean isCorrectFormat(String str) {
+	private boolean isCorrectFormat(String str) {
 		if (str == null) return false;
 		
 		String regex = "^([gG][A-Za-z]+-R[0-5]-E[A-Z])$";

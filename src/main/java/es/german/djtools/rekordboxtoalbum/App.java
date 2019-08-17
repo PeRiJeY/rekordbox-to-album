@@ -3,12 +3,15 @@ package es.german.djtools.rekordboxtoalbum;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.dom4j.DocumentException;
+import org.easybatch.core.job.Job;
+import org.easybatch.core.job.JobBuilder;
+import org.easybatch.core.job.JobExecutor;
+import org.easybatch.core.job.JobReport;
 
 import com.mpatric.mp3agic.InvalidDataException;
 import com.mpatric.mp3agic.NotSupportedException;
@@ -16,15 +19,15 @@ import com.mpatric.mp3agic.UnsupportedTagException;
 
 import es.german.djtools.rekordboxtoalbum.rekordbox.RBParser;
 import es.german.djtools.rekordboxtoalbum.rekordbox.Track;
-import es.german.djtools.rekordboxtoalbum.util.FileManager;
-import es.german.djtools.rekordboxtoalbum.util.Mp3Manager;
+import es.german.djtools.rekordboxtoalbum.util.FileRecordWithIgnoreReader;
+import es.german.djtools.rekordboxtoalbum.util.Mp3Processor;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 
-class Main {
+class App {
 	
 	final static Logger logger = LogManager.getLogger();
 
@@ -37,20 +40,15 @@ class Main {
 	 * @throws NotSupportedException 
 	 */
 	public static void main(String[] args) throws IOException, UnsupportedTagException, InvalidDataException, DocumentException, NotSupportedException {
-
+		new App().run(args);
+	}
+	
+	private void run(String[] args) throws IOException, DocumentException {
 		long timeInit = System.currentTimeMillis();
 		
 		parseArgs(args);
 
 		logger.info("Executing...");
-		
-		// String pathRekordboxLibrary = "E:/Desarrollos/DjTools/rekordbox-to-traktor/src/main/resources/examples/ExportEnXML_15082019.xml";
-		
-		// String pathFolderToProcess = "E:/tmp/";
-		// pathFolderToProcess = "F:/Musica/Reggaeton/";
-		// pathFolderToProcess = "F:/Musica/Electronica/Techno/";
-		// pathFolderToProcess = "F:/Musica/Electronica/";
-		// pathFolderToProcess = "F:/Musica/";
 		
 		Map<String, Track> rbTracks = null;
 		if (Settings.PATH_REKORDBOX_LIBRARY != null) {
@@ -60,11 +58,15 @@ class Main {
 			rbTracks = new HashMap<String, Track>();
 		}
 		
-		List<File> lFiles = FileManager.loadFilesMp3Folder(new File(Settings.PATH_TO_PROCESS));
-		
-		logger.info("Files to process: " + lFiles.size());
-		
-		Mp3Manager.processFiles(lFiles, rbTracks);
+		Job job = new JobBuilder()
+		         .reader(new FileRecordWithIgnoreReader(new File(Settings.PATH_TO_PROCESS), "mp3"))
+		         .processor(new Mp3Processor(rbTracks))
+		         .batchSize(10)
+		         .build();
+
+		JobExecutor jobExecutor = new JobExecutor();
+		JobReport report = jobExecutor.execute(job);
+		jobExecutor.shutdown();
 
 		long timeFinish = System.currentTimeMillis();
 		
@@ -74,7 +76,7 @@ class Main {
 		logger.info("Execute time: " + (timeFinish - timeInit) + "ms.");
 	}
 	
-	private static void parseArgs(String[] args) {
+	private void parseArgs(String[] args) {
 		
 		logger.info("Parsing arguments...");
 		
