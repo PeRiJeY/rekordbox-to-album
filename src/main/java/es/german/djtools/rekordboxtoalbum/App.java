@@ -13,10 +13,6 @@ import org.easybatch.core.job.JobBuilder;
 import org.easybatch.core.job.JobExecutor;
 import org.easybatch.core.job.JobReport;
 
-import com.mpatric.mp3agic.InvalidDataException;
-import com.mpatric.mp3agic.NotSupportedException;
-import com.mpatric.mp3agic.UnsupportedTagException;
-
 import es.german.djtools.rekordboxtoalbum.rekordbox.RBParser;
 import es.german.djtools.rekordboxtoalbum.rekordbox.Track;
 import es.german.djtools.rekordboxtoalbum.util.FileRecordWithIgnoreReader;
@@ -33,13 +29,10 @@ class App {
 
 	/**
 	 * @param args
-	 * @throws DocumentException
 	 * @throws IOException
-	 * @throws InvalidDataException 
-	 * @throws UnsupportedTagException 
-	 * @throws NotSupportedException 
+	 * @throws DocumentException
 	 */
-	public static void main(String[] args) throws IOException, UnsupportedTagException, InvalidDataException, DocumentException, NotSupportedException {
+	public static void main(String[] args) throws IOException, DocumentException {
 		new App().run(args);
 	}
 	

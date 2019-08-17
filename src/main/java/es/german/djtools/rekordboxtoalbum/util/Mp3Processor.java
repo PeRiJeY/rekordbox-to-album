@@ -12,12 +12,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.easybatch.core.processor.RecordProcessor;
 import org.easybatch.core.record.FileRecord;
-
-import com.mpatric.mp3agic.ID3v2;
-import com.mpatric.mp3agic.InvalidDataException;
-import com.mpatric.mp3agic.Mp3File;
-import com.mpatric.mp3agic.NotSupportedException;
-import com.mpatric.mp3agic.UnsupportedTagException;
+import org.jaudiotagger.audio.AudioFileIO;
+import org.jaudiotagger.audio.exceptions.CannotReadException;
+import org.jaudiotagger.audio.exceptions.CannotWriteException;
+import org.jaudiotagger.audio.exceptions.InvalidAudioFrameException;
+import org.jaudiotagger.audio.exceptions.ReadOnlyFileException;
+import org.jaudiotagger.audio.mp3.MP3File;
+import org.jaudiotagger.tag.FieldKey;
+import org.jaudiotagger.tag.TagException;
+import org.jaudiotagger.tag.id3.AbstractID3v2Tag;
 
 import es.german.djtools.rekordboxtoalbum.Settings;
 import es.german.djtools.rekordboxtoalbum.Stats;
@@ -25,9 +28,6 @@ import es.german.djtools.rekordboxtoalbum.exceptions.CustomException;
 import es.german.djtools.rekordboxtoalbum.rekordbox.Track;
 
 public class Mp3Processor implements RecordProcessor<FileRecord, FileRecord> {
-	private static final String RETAG_EXTENSION = ".retag";
-	private static final String BACKUP_EXTENSION = ".bak";
-	
 	final static Logger logger = LogManager.getLogger();
 	
 	private Map<String, Track> rbTracks = null;
@@ -47,16 +47,7 @@ public class Mp3Processor implements RecordProcessor<FileRecord, FileRecord> {
 		File f = record.getPayload();
 
 		try {
-			
 			fillAlbum(f);
-		} catch (UnsupportedTagException e) {
-			logger.error(f.getName(), e);
-		} catch (InvalidDataException e) {
-			logger.error(f.getName(), e);
-		} catch (NotSupportedException e) {
-			logger.error(f.getName(), e);
-		} catch (IOException e) {
-			logger.error(f.getName(), e);
 		} catch (Exception e) {
 			logger.error(f.getName(), e);
 		}
@@ -65,30 +56,30 @@ public class Mp3Processor implements RecordProcessor<FileRecord, FileRecord> {
 	}
 	
 	private void fillAlbum(final File file)
-			throws UnsupportedTagException, InvalidDataException, IOException, NotSupportedException {
+			throws IOException, CannotReadException, TagException, ReadOnlyFileException, InvalidAudioFrameException, CannotWriteException {
 		if (file.isFile()) {
-			Mp3File mp3file = new Mp3File(file);
+			MP3File mp3file = (MP3File) AudioFileIO.read(file);
 
-			if (mp3file.hasId3v2Tag()) {
-				ID3v2 id3v2Tag = mp3file.getId3v2Tag();
+			if (mp3file.hasID3v2Tag()) {
+				AbstractID3v2Tag id3v2Tag = mp3file.getID3v2Tag();
 				
-				logger.debug("File: " + mp3file.getFilename());
-				logger.debug("Genre: " + id3v2Tag.getGenreDescription());
-				logger.debug("Comment: " + id3v2Tag.getComment());
-				logger.debug("AlbumArtist: " + id3v2Tag.getAlbumArtist());
+				logger.debug("File: " + file.getPath());
+				logger.debug("Genre: " + id3v2Tag.getFirst(FieldKey.GENRE));
+				logger.debug("Comment: " + id3v2Tag.getFirst(FieldKey.COMMENT));
+				logger.debug("AlbumArtist: " + id3v2Tag.getFirst(FieldKey.ALBUM_ARTIST));
 								
 				// Process only bad formats
-				String previousAlbum = id3v2Tag.getAlbum();
+				String previousAlbum = id3v2Tag.getFirst(FieldKey.ALBUM);
 				// if (!Settings.FULL_UPDATE && isCorrectFormat(previousAlbum)) return;
 
 				// Get Track from Recordbox database
-				Track rbTrack = rbTracks.get(mp3file.getFilename().replace('\\', '/'));
+				Track rbTrack = rbTracks.get(file.getPath().replace('\\', '/'));
 
 				// Prepare Genre
-				String compactGenre = getCompactGenre(id3v2Tag.getGenreDescription());
+				String compactGenre = getCompactGenre(id3v2Tag.getFirst(FieldKey.GENRE));
 
 				// Prepare Energy
-				String compactEnergy = getEnergyFromComment(id3v2Tag.getComment());
+				String compactEnergy = getEnergyFromComment(id3v2Tag.getFirst(FieldKey.COMMENT));
 
 				// Prepare Rating
 				int compactRating = getRating(rbTrack);
@@ -96,16 +87,16 @@ public class Mp3Processor implements RecordProcessor<FileRecord, FileRecord> {
 				// Prepare Final String
 				if (StringUtils.isNotEmpty(compactGenre)) {
 					String finalStr = "g" + compactGenre + "-R" + compactRating + "-E" + compactEnergy;
-					logger.debug("Final String: " + finalStr + " (" + mp3file.getFilename() + ")");
+					logger.debug("Final String: " + finalStr + " (" + file.getPath() + ")");
 					
-					id3v2Tag.setAlbum(finalStr);
-					id3v2Tag.setAlbumArtist(null);
-					id3v2Tag.setTrack("0");
+					id3v2Tag.setField(FieldKey.ALBUM, finalStr);
+					id3v2Tag.deleteField(FieldKey.ALBUM_ARTIST);
+					id3v2Tag.deleteField(FieldKey.TRACK);
 					
 					if (Settings.SAVE_CHANGES
 							&& (Settings.FULL_UPDATE || !StringUtils.equals(previousAlbum, finalStr))) {
 						Stats.getInstance().addElementUpdated();
-						saveChanges(mp3file);
+						AudioFileIO.write(mp3file);
 					}
 				}
 
@@ -197,40 +188,6 @@ public class Mp3Processor implements RecordProcessor<FileRecord, FileRecord> {
 			}
 		}
 		return result;
-	}
-	
-	private void saveChanges(Mp3File mp3file) throws NotSupportedException, IOException {
-		removeFile(mp3file.getFilename() + RETAG_EXTENSION);
-		mp3file.save(mp3file.getFilename() + RETAG_EXTENSION);
-		
-		renameFiles(mp3file.getFilename());
-		removeFile(mp3file.getFilename() + BACKUP_EXTENSION);
-	}
-	
-	private void renameFiles(String filename) throws IOException {
-		File originalFile = new File(filename);
-		File backupFile = new File(filename + BACKUP_EXTENSION);
-		File retaggedFile = new File(filename + RETAG_EXTENSION);
-		if (backupFile.exists()) {
-			if (!backupFile.delete()) {
-				throw new IOException("Error removing backup: " + filename);
-			}
-		}
-		if (!originalFile.renameTo(backupFile)) {
-			throw new IOException("Error renaming original file to retag bak extension: " + filename);
-		}
-		if (!retaggedFile.renameTo(originalFile)) {
-			throw new IOException("Error renaming retagged file to original name: " + filename);
-		}
-	}
-	
-	private void removeFile(String filename) throws IOException {
-		File file = new File(filename);
-		if (file.exists()) {
-			if (!file.delete()) {
-				throw new IOException("Error removing file: " + filename);
-			}
-		}
 	}
 	
 	@SuppressWarnings("unused")
