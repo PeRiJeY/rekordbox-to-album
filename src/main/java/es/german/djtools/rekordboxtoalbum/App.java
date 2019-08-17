@@ -63,10 +63,12 @@ class App {
 
 		long timeFinish = System.currentTimeMillis();
 		
+		logger.info(report.toString());
+		
 		logger.info("Processed Elements: " + Stats.getInstance().getElementsProcessed());
 		logger.info("Updated Elements: " + Stats.getInstance().getElementsUpdated());
-		
 		logger.info("Execute time: " + (timeFinish - timeInit) + "ms.");
+		
 	}
 	
 	private void parseArgs(String[] args) {
