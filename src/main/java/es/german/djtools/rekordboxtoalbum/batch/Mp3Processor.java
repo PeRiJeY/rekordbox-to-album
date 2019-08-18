@@ -1,4 +1,4 @@
-package es.german.djtools.rekordboxtoalbum.util;
+package es.german.djtools.rekordboxtoalbum.batch;
 
 import java.io.File;
 import java.io.IOException;

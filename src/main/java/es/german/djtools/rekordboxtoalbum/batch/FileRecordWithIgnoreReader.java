@@ -1,4 +1,4 @@
-package es.german.djtools.rekordboxtoalbum.util;
+package es.german.djtools.rekordboxtoalbum.batch;
 
 import static java.lang.String.format;
 import static org.easybatch.core.util.Utils.checkArgument;

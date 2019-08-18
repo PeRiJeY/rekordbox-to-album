@@ -13,10 +13,10 @@ import org.easybatch.core.job.JobBuilder;
 import org.easybatch.core.job.JobExecutor;
 import org.easybatch.core.job.JobReport;
 
+import es.german.djtools.rekordboxtoalbum.batch.FileRecordWithIgnoreReader;
+import es.german.djtools.rekordboxtoalbum.batch.Mp3Processor;
 import es.german.djtools.rekordboxtoalbum.rekordbox.RBParser;
 import es.german.djtools.rekordboxtoalbum.rekordbox.Track;
-import es.german.djtools.rekordboxtoalbum.util.FileRecordWithIgnoreReader;
-import es.german.djtools.rekordboxtoalbum.util.Mp3Processor;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
