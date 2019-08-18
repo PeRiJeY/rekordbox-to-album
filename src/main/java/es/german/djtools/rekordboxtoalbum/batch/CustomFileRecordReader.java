@@ -19,7 +19,7 @@ import org.easybatch.core.reader.RecordReader;
 import org.easybatch.core.record.FileRecord;
 import org.easybatch.core.record.Header;
 
-public class FileRecordWithIgnoreReader implements RecordReader {
+public class CustomFileRecordReader implements RecordReader {
 	
 	final static Logger logger = LogManager.getLogger();
 	
@@ -29,12 +29,12 @@ public class FileRecordWithIgnoreReader implements RecordReader {
     private String[] extensions;
 
     /**
-     * Create a new {@link FileRecordWithIgnoreReader}.
+     * Create a new {@link CustomFileRecordReader}.
      *
      * @param directory to read files from
      * @param extensions a list of extensions. Example: .log
      */
-    public FileRecordWithIgnoreReader(final File directory, String... extensions) {
+    public CustomFileRecordReader(final File directory, String... extensions) {
     	checkNotNull(directory, "directory");
         this.directory = directory;
         this.extensions = extensions;
@@ -48,7 +48,7 @@ public class FileRecordWithIgnoreReader implements RecordReader {
 
     private List<File> getFiles(final File directory) throws IOException {
         int maxDepth = Integer.MAX_VALUE;
-        FilesWithIgnoreCollector filesCollector = new FilesWithIgnoreCollector(extensions);
+        FilesCollector filesCollector = new FilesCollector(extensions);
         EnumSet<FileVisitOption> fileVisitOptions = EnumSet.noneOf(FileVisitOption.class);
         Files.walkFileTree(directory.toPath(), fileVisitOptions, maxDepth, filesCollector);
         return filesCollector.getFiles();

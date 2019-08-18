@@ -15,7 +15,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class FilesWithIgnoreCollector implements FileVisitor<Path> {
+public class FilesCollector implements FileVisitor<Path> {
 	
 	final static Logger logger = LogManager.getLogger();
 
@@ -24,7 +24,7 @@ public class FilesWithIgnoreCollector implements FileVisitor<Path> {
     private List<File> files = new ArrayList<File>();
     private String[] extensions;
 
-    public FilesWithIgnoreCollector(String... extensions) {
+    public FilesCollector(String... extensions) {
     	this.extensions = extensions;
     }
 

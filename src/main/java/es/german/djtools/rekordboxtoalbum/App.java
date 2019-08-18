@@ -13,7 +13,7 @@ import org.easybatch.core.job.JobBuilder;
 import org.easybatch.core.job.JobExecutor;
 import org.easybatch.core.job.JobReport;
 
-import es.german.djtools.rekordboxtoalbum.batch.FileRecordWithIgnoreReader;
+import es.german.djtools.rekordboxtoalbum.batch.CustomFileRecordReader;
 import es.german.djtools.rekordboxtoalbum.batch.Mp3Processor;
 import es.german.djtools.rekordboxtoalbum.rekordbox.RBParser;
 import es.german.djtools.rekordboxtoalbum.rekordbox.Track;
@@ -52,7 +52,7 @@ class App {
 		}
 		
 		Job job = new JobBuilder()
-		         .reader(new FileRecordWithIgnoreReader(new File(Settings.PATH_TO_PROCESS), "mp3"))
+		         .reader(new CustomFileRecordReader(new File(Settings.PATH_TO_PROCESS), "mp3"))
 		         .processor(new Mp3Processor(rbTracks))
 		         .batchSize(10)
 		         .build();
